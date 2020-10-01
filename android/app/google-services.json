@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "896838880304",
+    "firebase_url": "https://prayasacademyapp.firebaseio.com",
+    "project_id": "prayasacademyapp",
+    "storage_bucket": "prayasacademyapp.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:896838880304:android:22169c5f15ba8fa9afb1f5",
+        "android_client_info": {
+          "package_name": "com.vrcodehub.prayasacademy"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "896838880304-1t1lhelph27tji2tmfutflon1rc6kne8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vrcodehub.prayasacademy",
+            "certificate_hash": "55e0ab0bdfa8b10504bd0bc224eca811967f029c"
+          }
+        },
+        {
+          "client_id": "896838880304-rqdnajhmga2bevtlfg4av1c7quk0q5dv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQyrebgTDnCbzTroZih0faKZaBQHMGr_8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "896838880304-rqdnajhmga2bevtlfg4av1c7quk0q5dv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
