@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:masterstudy_app/data/models/ReviewResponse.dart';
@@ -121,7 +123,7 @@ class _OverviewWidgetState extends State<OverviewWidget>
   double descriptionHeight;
 
   _buildDescription() {
-    if(Platform.isAndroid && (androidInfo.version.sdkInt == 28))
+    if (Platform.isAndroid && (androidInfo.version.sdkInt == 28))
       return _buildHtmlDesctription();
 
     double webContainerHeight;
@@ -130,7 +132,28 @@ class _OverviewWidgetState extends State<OverviewWidget>
     } else {
       webContainerHeight = 160;
     }
+    String getFontUri(ByteData data, String mime) {
+      final buffer = data.buffer;
+      return Uri.dataFromBytes(
+              buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+              mimeType: mime)
+          .toString();
+    }
 
+    Future<String> addFontToHtml(
+        String htmlContent, String fontAssetPath, String fontMime) async {
+      final fontData = await rootBundle.load(fontAssetPath);
+      final fontUri = getFontUri(fontData, fontMime).toString();
+      //final fontUri="https://fonts.googleapis.com/css2?family=Poppins&display=swap";
+
+      //    final fontCss =
+      //        '@font-face { font-family: customFont; src: url($fontUri); } * { font-family: customFont; }';
+      final fontCss =
+          '@font-face { font-family: customFont; src: url($fontUri); } * { font-family: customFont; }';
+      return '<style>$fontCss</style>$htmlContent';
+    }
+
+    String htmcont = "<style>font-family:customFont;</style>";
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: <
         Widget>[
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
@@ -139,7 +162,7 @@ class _OverviewWidgetState extends State<OverviewWidget>
           child: WebView(
             javascriptMode: JavascriptMode.unrestricted,
             initialUrl:
-                'data:text/html;base64,${base64Encode(const Utf8Encoder().convert(widget.response.description))}',
+                'data:text/html;base64,${base64Encode(const Utf8Encoder().convert("<!DOCTYPE html><html lang='hi'><head><meta charset='utf-8'/>$htmcont</head>" + widget.response.description + "</html>"))}',
             onPageFinished: (some) async {
               double height = double.parse(
                   await _descriptionWebViewController.evaluateJavascript(
@@ -440,8 +463,8 @@ class _OverviewWidgetState extends State<OverviewWidget>
                 child: LinearProgressIndicator(
                   value: (!progress.isNaN) ? progress / 100 : 0,
                   backgroundColor: HexColor.fromHex("#F3F5F9"),
-                  valueColor: new AlwaysStoppedAnimation(
-                      HexColor.fromHex("#ECA824")),
+                  valueColor:
+                      new AlwaysStoppedAnimation(HexColor.fromHex("#ECA824")),
                 ),
               ),
             ),

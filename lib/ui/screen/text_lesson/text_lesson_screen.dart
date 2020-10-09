@@ -186,21 +186,25 @@ class TextLessonWidgetState extends State<TextLessonWidget> {
         .toString();
   }
 
-  Future<String> addFontToHtml(String htmlContent, String fontAssetPath, String fontMime) async {
+  Future<String> addFontToHtml(
+      String htmlContent, String fontAssetPath, String fontMime) async {
     final fontData = await rootBundle.load(fontAssetPath);
     final fontUri = getFontUri(fontData, fontMime).toString();
+    //final fontUri="https://fonts.googleapis.com/css2?family=Poppins&display=swap";
+
+//    final fontCss =
+//        '@font-face { font-family: customFont; src: url($fontUri); } * { font-family: customFont; }';
     final fontCss =
         '@font-face { font-family: customFont; src: url($fontUri); } * { font-family: customFont; }';
     return '<style>$fontCss</style>$htmlContent';
   }
 
   _buildWebView(LoadedTextLessonState state) {
-    String htmcont = "<html><style>font-family: </style>";
+    String htmcont = "<style>font-family:customFont;</style>";
     return WebView(
-
       javascriptMode: JavascriptMode.unrestricted,
       initialUrl:
-          'data:text/html;base64,${base64Encode(const Utf8Encoder().convert("<html lang='hi'>$htmcont</html>"+state.lessonResponse.content))}',
+          'data:text/html;base64,${base64Encode(const Utf8Encoder().convert("<!DOCTYPE html><html lang='hi'><head><meta charset='utf-8'/>$htmcont</head>" + state.lessonResponse.content + "</html>"))}',
       onPageFinished: (some) async {},
       onWebViewCreated: (controller) async {
         controller.clearCache();
