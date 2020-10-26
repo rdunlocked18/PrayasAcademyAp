@@ -1,467 +1,126 @@
-import 'dart:convert';
-import 'dart:io' show Platform;
-import 'dart:typed_data';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:html_unescape/html_unescape.dart';
+import 'package:marquee/marquee.dart';
+import 'package:masterstudy_app/data/models/category.dart';
 import 'package:masterstudy_app/theme/theme.dart';
-import 'package:masterstudy_app/ui/bloc/text_lesson/bloc.dart';
-import 'package:masterstudy_app/ui/screen/assignment/assignment_screen.dart';
+import 'package:masterstudy_app/ui/screen/category_detail/category_detail_screen.dart';
 import 'package:masterstudy_app/ui/screen/final/final_screen.dart';
-import 'package:masterstudy_app/ui/screen/lesson_stream/lesson_stream_screen.dart';
-import 'package:masterstudy_app/ui/screen/lesson_video/lesson_video_screen.dart';
-import 'package:masterstudy_app/ui/screen/questions/questions_screen.dart';
-import 'package:masterstudy_app/ui/screen/quiz_lesson/quiz_lesson_screen.dart';
 import 'package:masterstudy_app/ui/screen/user_course_locked/user_course_locked_screen.dart';
-import 'package:masterstudy_app/ui/widgets/warning_lessong_dialog.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
-import '../../../main.dart';
+class CategoriesWidget extends StatelessWidget {
+  final List<Category> categories;
+  final String title;
 
-class TextLessonScreenArgs {
-  final int lessonId;
-  final int courseId;
-  final String authorAva;
-  final String authorName;
-  final bool hasPreview;
-  final bool trial;
-
-  TextLessonScreenArgs(this.courseId, this.lessonId, this.authorAva,
-      this.authorName, this.hasPreview, this.trial);
-}
-
-class TextLessonScreen extends StatelessWidget {
-  static const routeName = "textLessonScreen";
-  final TextLessonBloc bloc;
-
-  const TextLessonScreen(this.bloc) : super();
+  CategoriesWidget(
+    this.title,
+    this.categories, {
+    Key key,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    TextLessonScreenArgs args = ModalRoute.of(context).settings.arguments;
-    return BlocProvider<TextLessonBloc>(
-        create: (context) => bloc,
-        child: TextLessonWidget(args.courseId, args.lessonId, args.authorAva,
-            args.authorName, args.hasPreview, args.trial));
-  }
-}
-
-class TextLessonWidget extends StatefulWidget {
-  final int lessonId;
-  final int courseId;
-  final String authorAva;
-  final String authorName;
-  final bool hasPreview;
-  final bool trial;
-
-  const TextLessonWidget(this.courseId, this.lessonId, this.authorAva,
-      this.authorName, this.hasPreview, this.trial)
-      : super();
-
-  @override
-  State<StatefulWidget> createState() {
-    return TextLessonWidgetState();
-  }
-}
-
-class TextLessonWidgetState extends State<TextLessonWidget> {
-  TextLessonBloc _bloc;
-  bool completed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _bloc = BlocProvider.of<TextLessonBloc>(context)
-      ..add(FetchEvent(widget.courseId, widget.lessonId));
+    return (categories.length != 0)
+        ? Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Padding(
+                  padding: const EdgeInsets.only(top: 30.0, left: 30.0),
+                  child: Text(title,
+                      textScaleFactor: 1.0,
+                      style: Theme.of(context)
+                          .primaryTextTheme
+                          .title
+                          .copyWith(color: dark, fontStyle: FontStyle.normal))),
+              _buildList(context),
+              //anouncements
+            ],
+          )
+        : Center();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return BlocListener(
-      bloc: _bloc,
-      listener: (context, state) {
-        if (state is CacheWarningLessonState) {
-          showDialog(
-              context: context, builder: (context) => WarningLessonDialog());
-        }
-      },
-      child: BlocBuilder<TextLessonBloc, TextLessonState>(
-        bloc: _bloc,
-        builder: (BuildContext context, TextLessonState state) {
-          return Scaffold(
-            appBar: AppBar(
-              backgroundColor: HexColor.fromHex("#273044"),
-              title: _buildTitle(state),
-            ),
-            body: _buildBody(state),
-            bottomNavigationBar:
-                (!widget.trial) ? null : _buildBottomNavigation(state),
-          );
-        },
+  _buildList(context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 20.0),
+      child: ConstrainedBox(
+        constraints: new BoxConstraints(minHeight: 120, maxHeight: 160),
+        child: new ListView.builder(
+          itemCount: categories.length,
+          itemBuilder: (context, index) {
+            var item = categories[index];
+            var padding = (index == 0) ? 20.0 : 0.0;
+            var color =
+                (item.color != null) ? HexColor.fromHex(item.color) : dark;
+
+            return GestureDetector(
+              onTap: () {
+                Navigator.pushNamed(
+                  context,
+                  CategoryDetailScreen.routeName,
+                  arguments: CategoryDetailScreenArgs(item),
+                );
+              },
+              child: Padding(
+                padding: EdgeInsets.only(left: padding),
+                child: _buildRow(item.image, color, item.name),
+              ),
+            );
+          },
+          padding: const EdgeInsets.all(8.0),
+          scrollDirection: Axis.horizontal,
+        ),
       ),
     );
   }
 
-  _buildTitle(TextLessonState state) {
-    if (state is InitialTextLessonState) return Center();
-    if (state is LoadedTextLessonState) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          Flexible(
+  _buildRow(String imgUrl, color, title) {
+    var unescape = new HtmlUnescape();
+    var imgFormat = (imgUrl != null && imgUrl != "") ? imgUrl.split(".") : null;
+
+    return Card(
+        color: color,
+        child: new Container(
+          decoration: BoxDecoration(
+              image: DecorationImage(
+                  colorFilter: new ColorFilter.mode(
+                      Colors.black.withOpacity(0.6), BlendMode.dstATop),
+                  image: NetworkImage(imgUrl),
+                  fit: BoxFit.cover)),
+          width: 140,
+          height: 140,
+          child: Center(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Text(
-                  state.lessonResponse.section.number,
-                  textScaleFactor: 1.0,
-                  style: TextStyle(fontSize: 14.0, color: Colors.white),
-                ),
-                Flexible(
+//                (imgFormat != null)
+//                    ? SizedBox(
+//                        width: 50,
+//                        height: 50,
+//                        child: (imgFormat.last == 'svg')
+//                            ? SvgPicture.asset(imgUrl,
+//                                color: HexColor.fromHex("#FFFFFF"))
+//                            : Image.network(
+//                                imgUrl,
+//                                width: double.infinity,
+//                                height: 50,
+//                                fit: BoxFit.fill,
+//                              ))
+//                    : Center(),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0, left: 16, right: 16),
                   child: Text(
-                    state.lessonResponse.section.label,
+                    unescape.convert(title),
                     textScaleFactor: 1.0,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 14.0,
-                      color: Colors.white,
-                    ),
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
-                ),
+                )
               ],
             ),
           ),
-          (widget.hasPreview)
-              ? Center()
-              : SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: FlatButton(
-                    shape: new RoundedRectangleBorder(
-                        borderRadius: new BorderRadius.circular(20.0),
-                        side: BorderSide(color: HexColor.fromHex("#3E4555"))),
-                    onPressed: () {
-                      Navigator.of(context).pushNamed(
-                        QuestionsScreen.routeName,
-                        arguments: QuestionsScreenArgs(widget.lessonId, 1),
-                      );
-                    },
-                    padding: EdgeInsets.all(0.0),
-                    color: HexColor.fromHex("#3E4555"),
-                    child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: SvgPicture.asset(
-                          "assets/icons/question_icon.svg",
-                          color: Colors.white,
-                        )),
-                  ),
-                )
-        ],
-      );
-    }
-  }
-
-  _buildBody(TextLessonState state) {
-    if (state is InitialTextLessonState) return _buildLoading();
-    if (state is LoadedTextLessonState) return _buildWebView(state);
-  }
-
-  _buildLoading() => Center(
-        child: CircularProgressIndicator(),
-      );
-
-  WebViewController _webViewController;
-  bool showLoadingWebview = true;
-
-  String getFontUri(ByteData data, String mime) {
-    final buffer = data.buffer;
-    return Uri.dataFromBytes(
-            buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-            mimeType: mime)
-        .toString();
-  }
-
-  Future<String> addFontToHtml(
-      String htmlContent, String fontAssetPath, String fontMime) async {
-    final fontData = await rootBundle.load(fontAssetPath);
-    final fontUri = getFontUri(fontData, fontMime).toString();
-    //final fontUri="https://fonts.googleapis.com/css2?family=Poppins&display=swap";
-
-//    final fontCss =
-//        '@font-face { font-family: customFont; src: url($fontUri); } * { font-family: customFont; }';
-    final fontCss =
-        '@font-face { font-family: customFont; src: url($fontUri); } * { font-family: customFont; }';
-    return '<style>$fontCss</style>$htmlContent';
-  }
-
-  _buildWebView(LoadedTextLessonState state) {
-    String htmcont = "<style>font-family:customFont;</style>";
-    return WebView(
-      javascriptMode: JavascriptMode.unrestricted,
-      initialUrl:
-          'data:text/html;base64,${base64Encode(const Utf8Encoder().convert("<!DOCTYPE html><html lang='hi'><head><meta charset='utf-8'/>$htmcont</head>" + state.lessonResponse.content + "</html>"))}',
-      onPageFinished: (some) async {},
-      onWebViewCreated: (controller) async {
-        controller.clearCache();
-
-        this._webViewController = controller;
-      },
-    );
-  }
-
-  _buildBottomNavigation(TextLessonState state) {
-    if (state is InitialTextLessonState)
-      return Center(child: CircularProgressIndicator());
-
-    if (state is LoadedTextLessonState) {
-      return Container(
-        decoration:
-            BoxDecoration(color: HexColor.fromHex("#FFFFFF"), boxShadow: [
-          BoxShadow(
-              color: HexColor.fromHex("#000000").withOpacity(.1),
-              offset: Offset(0, 0),
-              blurRadius: 6,
-              spreadRadius: 2)
-        ]),
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              SizedBox(
-                  width: 35,
-                  height: 35,
-                  child: (state.lessonResponse.prev_lesson != "")
-                      ? FlatButton(
-                          shape: new RoundedRectangleBorder(
-                              borderRadius: new BorderRadius.circular(20.0),
-                              side: BorderSide(color: mainColor)),
-                          onPressed: () {
-                            switch (state.lessonResponse.prev_lesson_type) {
-                              case "video":
-                                Navigator.of(context).pushReplacementNamed(
-                                  LessonVideoScreen.routeName,
-                                  arguments: LessonVideoScreenArgs(
-                                      widget.courseId,
-                                      int.tryParse(
-                                          state.lessonResponse.prev_lesson),
-                                      widget.authorAva,
-                                      widget.authorName,
-                                      widget.hasPreview,
-                                      widget.trial),
-                                );
-                                break;
-                              case "quiz":
-                                Navigator.of(context).pushReplacementNamed(
-                                  QuizLessonScreen.routeName,
-                                  arguments: QuizLessonScreenArgs(
-                                      widget.courseId,
-                                      int.tryParse(
-                                          state.lessonResponse.prev_lesson),
-                                      widget.authorAva,
-                                      widget.authorName),
-                                );
-                                break;
-                              case "assignment":
-                                Navigator.of(context).pushReplacementNamed(
-                                  AssignmentScreen.routeName,
-                                  arguments: AssignmentScreenArgs(
-                                      widget.courseId,
-                                      int.tryParse(
-                                          state.lessonResponse.prev_lesson),
-                                      widget.authorAva,
-                                      widget.authorName),
-                                );
-                                break;
-                              case "stream":
-                                Navigator.of(context).pushReplacementNamed(
-                                  LessonStreamScreen.routeName,
-                                  arguments: LessonStreamScreenArgs(
-                                      widget.courseId,
-                                      int.tryParse(
-                                          state.lessonResponse.prev_lesson),
-                                      widget.authorAva,
-                                      widget.authorName),
-                                );
-                                break;
-                              default:
-                                Navigator.of(context).pushReplacementNamed(
-                                  TextLessonScreen.routeName,
-                                  arguments: TextLessonScreenArgs(
-                                      widget.courseId,
-                                      int.tryParse(
-                                          state.lessonResponse.prev_lesson),
-                                      widget.authorAva,
-                                      widget.authorName,
-                                      widget.hasPreview,
-                                      widget.trial),
-                                );
-                            }
-                          },
-                          padding: EdgeInsets.all(0.0),
-                          color: mainColor,
-                          child: Icon(Icons.chevron_left),
-                        )
-                      : Center()),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(left: 20, right: 20),
-                  child: MaterialButton(
-                      height: 50,
-                      color: mainColor,
-                      padding: EdgeInsets.all(0.0),
-                      onPressed: () {
-                        if (state is LoadedTextLessonState &&
-                            !state.lessonResponse.completed) {
-                          _bloc.add(CompleteLessonEvent(
-                              widget.courseId, widget.lessonId));
-                          setState(() {
-                            completed = true;
-                          });
-                        } else if (state.lessonResponse.completed &&
-                            !state.lessonResponse.next_lesson_available) {
-                          /*Navigator.of(context).pushNamed(FinalScreen.routeName,
-                            arguments: FinalScreenArgs(widget.courseId),
-                          );*/
-                        }
-                      },
-                      child: _buildButtonChild(state)),
-                ),
-              ),
-              SizedBox(
-                width: 35,
-                height: 35,
-                child: FlatButton(
-                  shape: new RoundedRectangleBorder(
-                      borderRadius: new BorderRadius.circular(20.0),
-                      side: BorderSide(color: mainColor)),
-                  onPressed: () {
-                    if (state.lessonResponse.next_lesson != "") {
-                      if (state.lessonResponse.next_lesson_available) {
-                        switch (state.lessonResponse.next_lesson_type) {
-                          case "video":
-                            Navigator.of(context).pushReplacementNamed(
-                              LessonVideoScreen.routeName,
-                              arguments: LessonVideoScreenArgs(
-                                  widget.courseId,
-                                  int.tryParse(
-                                      state.lessonResponse.next_lesson),
-                                  widget.authorAva,
-                                  widget.authorName,
-                                  widget.hasPreview,
-                                  widget.trial),
-                            );
-                            break;
-                          case "quiz":
-                            Navigator.of(context).pushReplacementNamed(
-                              QuizLessonScreen.routeName,
-                              arguments: QuizLessonScreenArgs(
-                                  widget.courseId,
-                                  int.tryParse(
-                                      state.lessonResponse.next_lesson),
-                                  widget.authorAva,
-                                  widget.authorName),
-                            );
-                            break;
-                          case "assignment":
-                            Navigator.of(context).pushReplacementNamed(
-                              AssignmentScreen.routeName,
-                              arguments: AssignmentScreenArgs(
-                                  widget.courseId,
-                                  int.tryParse(
-                                      state.lessonResponse.next_lesson),
-                                  widget.authorAva,
-                                  widget.authorName),
-                            );
-                            break;
-                          case "stream":
-                            Navigator.of(context).pushReplacementNamed(
-                              LessonStreamScreen.routeName,
-                              arguments: LessonStreamScreenArgs(
-                                  widget.courseId,
-                                  int.tryParse(
-                                      state.lessonResponse.next_lesson),
-                                  widget.authorAva,
-                                  widget.authorName),
-                            );
-                            break;
-                          default:
-                            Navigator.of(context).pushReplacementNamed(
-                              TextLessonScreen.routeName,
-                              arguments: TextLessonScreenArgs(
-                                  widget.courseId,
-                                  int.tryParse(
-                                      state.lessonResponse.next_lesson),
-                                  widget.authorAva,
-                                  widget.authorName,
-                                  widget.hasPreview,
-                                  widget.trial),
-                            );
-                        }
-                      } else {
-                        Navigator.of(context).pushNamed(
-                          UserCourseLockedScreen.routeName,
-                          arguments:
-                              UserCourseLockedScreenArgs(widget.courseId),
-                        );
-                      }
-                    } else {
-                      var future = Navigator.of(context).pushNamed(
-                        FinalScreen.routeName,
-                        arguments: FinalScreenArgs(widget.courseId),
-                      );
-                      future.then((value) {
-                        Navigator.pop(context);
-                      });
-                    }
-                  },
-                  padding: EdgeInsets.all(0.0),
-                  color: mainColor,
-                  child: Icon(Icons.chevron_right),
-                ),
-              )
-            ],
-          ),
-        ),
-      );
-    }
-  }
-
-  _buildButtonChild(TextLessonState state) {
-    if (state is InitialTextLessonState)
-      return SizedBox(
-        width: 30,
-        height: 30,
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation(Colors.white),
-        ),
-      );
-    if (state is LoadedTextLessonState) {
-      Widget icon;
-      if (state.lessonResponse.completed || completed) {
-        icon = Icon(Icons.check_circle);
-      } else {
-        icon = Icon(Icons.panorama_fish_eye);
-      }
-
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          icon,
-          Padding(
-            padding: const EdgeInsets.only(left: 8.0),
-            child: Text(
-              localizations.getLocalization("complete_lesson_button"),
-              textScaleFactor: 1.0,
-            ),
-          )
-        ],
-      );
-    }
+        ));
   }
 }
